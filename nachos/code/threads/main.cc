@@ -93,6 +93,9 @@ main(int argc, char **argv)
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
 #ifdef USER_PROGRAM
+		//if (!strcmp(*argv, "-F"))
+
+
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
             LaunchUserProcess(*(argv + 1));
