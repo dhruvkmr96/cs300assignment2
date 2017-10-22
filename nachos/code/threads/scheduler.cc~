@@ -1,4 +1,4 @@
-// scheduler.cc
+// scheduler.cc 
 //	Routines to choose the next thread to run, and to dispatch to
 //	that thread.
 //
@@ -7,15 +7,15 @@
 //	(since we are on a uniprocessor).
 //
 // 	NOTE: We can't use Locks to provide mutual exclusion here, since
-// 	if we needed to wait for a lock, and the lock was busy, we would
-//	end up calling SelectNextReadyThread(), and that would put us in an
+// 	if we needed to wait for a lock, and the lock was busy, we would 
+//	end up calling SelectNextReadyThread(), and that would put us in an 
 //	infinite loop.
 //
 // 	Very simple implementation -- no priorities, straight FIFO.
 //	Might need to be improved in later assignments.
 //
 // Copyright (c) 1992-1993 The Regents of the University of California.
-// All rights reserved.  See copyright.h for copyright notice and limitation
+// All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
 
 #include "copyright.h"
@@ -28,14 +28,9 @@
 //----------------------------------------------------------------------
 
 ProcessScheduler::ProcessScheduler()
-{
-  listOfReadyThreads = new List;
-
-#if def USER_PROGRAM
-    SchedulingAlgorithm=0;
-#endif
-}
-
+{ 
+    listOfReadyThreads = new List; 
+} 
 
 //----------------------------------------------------------------------
 // ProcessScheduler::~ProcessScheduler
@@ -43,9 +38,9 @@ ProcessScheduler::ProcessScheduler()
 //----------------------------------------------------------------------
 
 ProcessScheduler::~ProcessScheduler()
-{
-    delete listOfReadyThreads;
-}
+{ 
+    delete listOfReadyThreads; 
+} 
 
 //----------------------------------------------------------------------
 // ProcessScheduler::MoveThreadToReadyQueue
@@ -61,19 +56,8 @@ ProcessScheduler::MoveThreadToReadyQueue (NachOSThread *thread)
     DEBUG('t', "Putting thread %s with PID %d on ready list.\n", thread->getName(), thread->GetPID());
 
     thread->setStatus(READY);
-    int CPUUsageTime=thread->threadStatistics->stoppedRunning();
-#ifdef USER_PROGRAM
+    thread->threadStatistics->stoppedRunningTime();
     listOfReadyThreads->Append((void *)thread);
-else
-    switch (scheduler->SchedulingAlgorithm) {
-      case 7:
-      case 8:
-      case 9:
-      case 10:
-      default:
-        changePriorityCarefully(CPUUsageTime);
-    }
-    listOfReadyThreads->SortedInsertInWaitQueue((void*)thread,thread->priorityValue);
 }
 
 //----------------------------------------------------------------------
@@ -107,51 +91,34 @@ ProcessScheduler::SelectNextReadyThread ()
 void
 ProcessScheduler::ScheduleThread (NachOSThread *nextThread)
 {
-    int CPUUsageTime=currentThread->threadStatistics->stoppedRunning();
-    stats->updateBurst(CPUUsageTime);
-  	nextThread->threadStatistics->startRunning();
-
+	
+    stats->updateBurst(currentThread->threadStatistics->stoppedRunning());
+    
     NachOSThread *oldThread = currentThread;
-
-#ifdef USER_PROGRAM			// ignore until running user programs
-    changePriorityCarefully(CPUUsageTime);
+    
+#ifdef USER_PROGRAM			// ignore until running user programs 
     if (currentThread->space != NULL) {	// if this thread is a user program,
         currentThread->SaveUserState(); // save the user's CPU registers
 	currentThread->space->SaveContextOnSwitch();
     }
-
-    // THIS IS ONLY FOR UNIX SCHEDULING AGLO
-    switch (scheduler->SchedulingAlgorithm) {
-      case 7:
-      case 8:
-      case 9:
-      case 10:
-          break;
-          //not needed, redundant
-          changePriorityCarefully(CPUUsageTime);
-      default:
-        break;
-    }
-
-
 #endif
-
+    
     oldThread->CheckOverflow();		    // check if the old thread
 					    // had an undetected stack overflow
 
     currentThread = nextThread;		    // switch to the next thread
     currentThread->setStatus(RUNNING);      // nextThread is now running
-
+    
     DEBUG('t', "Switching from thread \"%s\" with pid %d to thread \"%s\" with pid %d\n",
 	  oldThread->getName(), oldThread->GetPID(), nextThread->getName(), nextThread->GetPID());
-
-    // This is a machine-dependent assembly language routine defined
+    
+    // This is a machine-dependent assembly language routine defined 
     // in switch.s.  You may have to think
     // a bit to figure out what happens after this, both from the point
     // of view of the thread and from the perspective of the "outside world".
 
     _SWITCH(oldThread, nextThread);
-
+    
     DEBUG('t', "Now in thread \"%s\" with pid %d\n", currentThread->getName(), currentThread->GetPID());
 
     // If the old thread gave up the processor because it was finishing,
@@ -162,7 +129,7 @@ ProcessScheduler::ScheduleThread (NachOSThread *nextThread)
         delete threadToBeDestroyed;
 	threadToBeDestroyed = NULL;
     }
-
+    
 #ifdef USER_PROGRAM
     if (currentThread->space != NULL) {		// if there is an address space
         currentThread->RestoreUserState();     // to restore, do it.
@@ -195,32 +162,6 @@ ProcessScheduler::Tail ()
         currentThread->space->RestoreContextOnSwitch();
     }
 #endif
-}
-
-void
-ProcessScheduler::changePriorityCarefully(int durationCPU){
-  int sa=scheduler->SchedulingAlgorithm;
-  if(sa==2){
-    if(!durationCPU) return;
-    currentThread->priorityValue+=durationCPU;
-    currentThread->priorityValue/=2.0;
-  }
-  else if(sa==7 || sa==8 || sa==9 || sa==10){
-    if(!durationCPU) return;
-    currentThread->priorityValue+=durationCPU;
-    THERE SHOUDL BE SOMETHING HERE----------------
-    /*List* new_listOfReadyThreads=new List;
-
-    int k=0;
-    while(k<thread_index){
-      NachOSThread* temp=listOfReadyThreads
-      new_listOfReadyThreads->SortedInsert((void*))
-      k++;
-    }
-  */
-  }else{
-    currentThread->priorityValue = stats->totalTicks;
-  }
 }
 
 //----------------------------------------------------------------------

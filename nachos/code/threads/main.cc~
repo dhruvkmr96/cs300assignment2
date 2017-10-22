@@ -65,6 +65,7 @@ extern void StartUserProcess(char *file),
 extern void LaunchUserProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
+
 //----------------------------------------------------------------------
 // main
 // 	Bootstrap the operating system kernel.
@@ -107,8 +108,8 @@ main(int argc, char **argv)
           int priorities[100];
           int cnt = 0;
           std::ifstream input(argv[1]);
-
-
+          
+     
 /*
           std::string firstLine
           getline(input,firstLine);
@@ -124,13 +125,7 @@ int val, result = readInteger(firstLine.c_str(), val);
 */
 // scheduler->schedAlgo = static_cast<SchedulingAlgo>(val);
 
-          getline(input,line);
-          char *cstr=line.c_str();
-
-          // As described in the notes, 1 - corresponds to Nachos unpre-emptive algorithm
-          // 2- etc..etc...
-          int SchedulingAlgorithm=atoi(cstr);
-
+          			        
           string line;
           while(getline(input,line)){
             int pos = line.find(' ');
@@ -147,7 +142,7 @@ result = readInteger(line.substr(pos+1).c_str(),
 }
 
 */
-                line[pos]=0;
+                line[pos]='\0';
                 strcpy(files[cnt], line.c_str());
               }
               else

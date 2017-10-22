@@ -47,14 +47,15 @@ LaunchUserProcess(char *filename)
 }
 
 
-void BeginBatch(char files[][300],int *priorities,int batchSize){
+void StartBatchOfProcess(char files[][300],int *priorities,int batchSize){
   NachOSThread *thread, *mainThread;
   ProcessAddressSpace *space;
   OpenFile *executable;
   int i;
-
-IntStatus old = interrupt->SetLevel(IntOff);
-
+/*
+IntStatus oldLevel = interrupt->SetLevel(IntOff);
+*/
+  mainThread=currentThread;
   for (i=0; i<batchSize; i++) {
     executable = fileSystem->Open(files[i]);
     if (executable == NULL) {
@@ -64,11 +65,6 @@ IntStatus old = interrupt->SetLevel(IntOff);
     thread = new NachOSThread(files[i]);
     space = new ProcessAddressSpace(executable);
     thread->space = space;
-
-    int sa=scheduler->SchedulingAlgorithm;
-    if(sa==7 || sa==8 || sa==9 || sa=10)
-        thread->priority=priorities[i]+50;
-
 /*
 if (scheduler->schedAlgo >= 7) {
             // Only needed in case of UNIX scheduling
@@ -76,22 +72,22 @@ if (scheduler->schedAlgo >= 7) {
 }
 */
     delete executable;
-
+    currentThread=thread;
     space->InitUserModeCPURegisters();
-//    space->RestoreContextOnSwitch();
-//    thread->Schedule();
+    space->RestoreContextOnSwitch();
+    thread->Schedule();
 
     thread->SaveUserState();
 
         // Allocate Kernel Stack
     thread->CreateThreadStack(ForkStartFunction, 0);
 
-    thread->Schedule();
+thread->Schedule();
 
   }
-
-interrupt->SetLevel(old);
 /*
+interrupt->SetLevel(oldLevel);  // turning on the interrupt
+
     exitThreadArray[currentThread->GetPID()] = true;
     // FinishThread doesn't log completion time, NachOSThread::Exit does
     currentThread->FinishThread();
@@ -99,9 +95,12 @@ interrupt->SetLevel(old);
     // Let scheduler run the other threads
 
 */
-int pidofcurrentThread=currentThread->GetPID();
-exitThreadArray[pidofcurrentThread]=true;
-currentThread->FinishThread();
+  currentThread=mainThread;
+  for (i = 0; i < thread_index; i++) {
+    if (!exitThreadArray[i])
+      break;
+  }
+  currentThread->Exit(i == thread_index, 0);
   machine->Run();
 }
 
