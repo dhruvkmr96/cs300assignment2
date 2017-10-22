@@ -57,16 +57,15 @@ void updateStartTime(){
 
 // gives time of waiting in ready queue
 int startRunning(){
-  printf("[%d] Entering into processor @ %d\n",threadid, totalTicks);
- 	updateStartTime();
+ 	printf("[%d][Time: %d] Running after wait, waiting since %d\n", pid, totalTicks, stoppedRunningTime);  	updateStartTime();
 	return totalTicks-stoppedRunningTime;
 }
 
 // gives time of last CPU burst
 int stoppedRunning(){
 	updateEndTime();
-	printf("[%d] Runtime @ %d\n",threadid, totalTicks-startRunningTime);
-	return totalTicks-startRunningTime;
+  printf("[%d][Time: %d] Runtime @ %d\n", threadid, totalTicks,totalTicks-startRunningTime );
+	 	return totalTicks-startRunningTime;
 }
 
 //----------------------------------------------------------------------
@@ -269,14 +268,23 @@ NachOSThread::SetChildExitCode (int childpid, int ecode)
 void
 NachOSThread::Exit (bool terminateSim, int exitcode)
 {
-    (void) interrupt->SetLevel(IntOff);
 
 
 		stats->updateCompletionTimes(stats->totalTicks-stats->startTime);
+		(void) interrupt->SetLevel(IntOff);
     ASSERT(this == currentThread);
 
     DEBUG('t', "Finishing thread \"%s\" with pid %d\n", getName(), pid);
 
+		int k=currentThread->threadStatistics->stoppedRunning();
+		printf("[%d] Exiting runtime: %d\n", currentThread->GetPID(),k);
+		stats->updateBurst(k);
+
+#ifndef USER_PROGRAM
+	//
+#else
+		changePriorityCarefully();
+#endif
     threadToBeDestroyed = currentThread;
 
     NachOSThread *nextThread;
@@ -325,22 +333,33 @@ void
 NachOSThread::YieldCPU ()
 {
     NachOSThread *nextThread;
-    IntStatus oldLevel = interrupt->SetLevel(IntOff);
 
     ASSERT(this == currentThread);
 
     DEBUG('t', "Yielding thread \"%s\" with pid %d\n", getName(), pid);
 
+
+		stats->updateBurst(threadStatistics->stoppedRunning());
+		IntStatus oldLevel = interrupt->SetLevel(IntOff);
+
+
+#ifndef USER_PROGRAM
+	//
+#else
+	changePriorityCarefully();
+#endif
+
+
 		scheduler->MoveThreadToReadyQueue(this);
     nextThread = scheduler->SelectNextReadyThread();
 
-		if(nextThread==currentThread){
+		if(nextThread==currentThread || nextThread == NULL){
 			//ignore the wait time because its zero, but update the startRunningTime
-			threadStatistics->startRunning();
         printf("[%d] Switching out runtime: %d\n", currentThread->GetPID(), runTime); 		}
-    if (nextThread != currentThread) {
+    if (!(nextThread == currentThread || nextThread == NULL)) {
 			scheduler->ScheduleThread(nextThread);
 			printf("nextThread!=currentThread,Runtime for Current Thread %d from start time: %d and current time %d\n", runTime, currentThread->tstats->startTicks, curTicks);
+			threadStatistics->startRunning();
 
     }
     (void) interrupt->SetLevel(oldLevel);
@@ -371,13 +390,25 @@ NachOSThread::PutThreadToSleep ()
     NachOSThread *nextThread;
 
     ASSERT(this == currentThread);
+
+if( (!currentThread->GetPID())==0 ){
+			stats->updateBurst(threadStatistics->stoppedRunning());
+
+#ifndef USER_PROGRAM
+//
+#else
+			changePriorityCarefully();
+#endif
+}
+
+
     ASSERT(interrupt->getLevel() == IntOff);
 
     DEBUG('t', "Sleeping thread \"%s\" with pid %d\n", getName(), pid);
 
     status = BLOCKED;
     while ((nextThread = scheduler->SelectNextReadyThread()) == NULL)
-	interrupt->Idle();	// no one to run, wait for an interrupt
+		interrupt->Idle();	// no one to run, wait for an interrupt
 
     scheduler->ScheduleThread(nextThread); // returns when we've been signalled
 }
@@ -460,6 +491,32 @@ NachOSThread::SaveUserState()
 	   userRegisters[i] = machine->ReadRegister(i);
        stateRestored = false;
     }
+}
+
+void
+NachOSThread::changePriorityCarefully(){
+  int sa=scheduler->SchedulingAlgorithm;
+  if(sa==2){
+    if(!durationCPU) return;
+    currentThread->priorityValue+=durationCPU;
+    currentThread->priorityValue/=2.0;
+  }
+  else if(sa==7 || sa==8 || sa==9 || sa==10){
+    if(!durationCPU) return;
+    currentThread->CPUUsage+=durationCPU;
+  //  THERE SHOUDL BE SOMETHING HERE----------------
+    /*List* new_listOfReadyThreads=new List;
+
+    int k=0;
+    while(k<thread_index){
+      NachOSThread* temp=listOfReadyThreads
+      new_listOfReadyThreads->SortedInsert((void*))
+      k++;
+    }
+  */
+  }else{
+    currentThread->priorityValue = stats->totalTicks;
+  }
 }
 
 //----------------------------------------------------------------------

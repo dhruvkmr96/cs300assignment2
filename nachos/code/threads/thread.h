@@ -68,7 +68,7 @@ extern void ThreadPrint(int arg);
 
 
 class ThreadStatistics {
-	int beginTime,endTime,startRunningTime,stoppedRunningTime;
+	int startTime,endTime,startRunningTime,stoppedRunningTime;
 	int threadid;
 //REMOVE INt, ONLY FOR debugging
 	ThreadStatistics(int);
@@ -100,7 +100,7 @@ class NachOSThread {
 
   public:
 
-
+		void changePriorityCarefully();
 		int priorityValue,CPUUsage;
 
   	ThreadStatistics *threadstatistics;

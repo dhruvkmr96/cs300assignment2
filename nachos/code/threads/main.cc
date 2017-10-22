@@ -46,6 +46,11 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation
 // of liability and disclaimer of warranty provisions.
 
+
+#define q4
+#define a
+
+
 #define MAIN
 #include "copyright.h"
 #undef MAIN
@@ -131,6 +136,27 @@ int val, result = readInteger(firstLine.c_str(), val);
           // 2- etc..etc...
           int SchedulingAlgorithm=atoi(cstr);
 
+          switch (SchedulingAlgorithm) {
+            case 3:
+            case 7:
+              TimerTicks=a/4.0;
+              break;
+            case 4:
+            case 8:
+              TimerTicks=a/2.0;
+              break;
+            case 5:
+            case 9:
+              TimerTicks=a*3.0/4;
+              break;
+            case 6:
+            case 10:
+              TimerTicks=q4;
+              break;
+            default:
+              TimerTicks=100;
+          }
+
           string line;
           while(getline(input,line)){
             int pos = line.find(' ');
@@ -152,6 +178,8 @@ result = readInteger(line.substr(pos+1).c_str(),
               }
               else
                 printf("bad string\n");
+                input.close();
+                return 1;
             }
             else{
               priorities[cnt]=100;

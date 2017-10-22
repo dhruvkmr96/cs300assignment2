@@ -58,22 +58,16 @@ ProcessScheduler::~ProcessScheduler()
 void
 ProcessScheduler::MoveThreadToReadyQueue (NachOSThread *thread)
 {
+  thread->threadStatistics->stoppedRunning();
+
     DEBUG('t', "Putting thread %s with PID %d on ready list.\n", thread->getName(), thread->GetPID());
 
     thread->setStatus(READY);
-    int CPUUsageTime=thread->threadStatistics->stoppedRunning();
-#ifdef USER_PROGRAM
+#ifndef USER_PROGRAM
     listOfReadyThreads->Append((void *)thread);
-else
-    switch (scheduler->SchedulingAlgorithm) {
-      case 7:
-      case 8:
-      case 9:
-      case 10:
-      default:
-        changePriorityCarefully(CPUUsageTime);
-    }
+#else
     listOfReadyThreads->SortedInsertInWaitQueue((void*)thread,thread->priorityValue);
+#endif
 }
 
 //----------------------------------------------------------------------
@@ -87,7 +81,19 @@ else
 NachOSThread *
 ProcessScheduler::SelectNextReadyThread ()
 {
-    return (NachOSThread *)listOfReadyThreads->Remove();
+#ifndef USER_PROGRAM
+  return (NachOSThread *)listOfReadyThreads->Remove();
+#else
+  switch (scheduler->SchedulingAlgorithm) {
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    default:
+      RearrangeThreadsOfReadyQueue();
+  }
+  return (NachOSThread *)listOfReadyThreads->Remove();
+#endif
 }
 
 //----------------------------------------------------------------------
@@ -107,8 +113,8 @@ ProcessScheduler::SelectNextReadyThread ()
 void
 ProcessScheduler::ScheduleThread (NachOSThread *nextThread)
 {
-    int CPUUsageTime=currentThread->threadStatistics->stoppedRunning();
-    stats->updateBurst(CPUUsageTime);
+    //int CPUUsageTime=currentThread->threadStatistics->stoppedRunning();
+    //stats->updateBurst(CPUUsageTime);
   	nextThread->threadStatistics->startRunning();
 
     NachOSThread *oldThread = currentThread;
@@ -117,7 +123,7 @@ ProcessScheduler::ScheduleThread (NachOSThread *nextThread)
     changePriorityCarefully(CPUUsageTime);
     if (currentThread->space != NULL) {	// if this thread is a user program,
         currentThread->SaveUserState(); // save the user's CPU registers
-	currentThread->space->SaveContextOnSwitch();
+	       currentThread->space->SaveContextOnSwitch();
     }
 
     // THIS IS ONLY FOR UNIX SCHEDULING AGLO
@@ -141,6 +147,13 @@ ProcessScheduler::ScheduleThread (NachOSThread *nextThread)
 
     currentThread = nextThread;		    // switch to the next thread
     currentThread->setStatus(RUNNING);      // nextThread is now running
+
+
+#ifndef
+  //hey
+#else
+    printf("[%d][Time: %d] Scheduling with priority: %d\n", currentThread->GetPID(), stats->totalTicks, currentThread->priorityValue + currentThread->CPUUsageTime/2);
+#endif
 
     DEBUG('t', "Switching from thread \"%s\" with pid %d to thread \"%s\" with pid %d\n",
 	  oldThread->getName(), oldThread->GetPID(), nextThread->getName(), nextThread->GetPID());
@@ -198,29 +211,32 @@ ProcessScheduler::Tail ()
 }
 
 void
-ProcessScheduler::changePriorityCarefully(int durationCPU){
-  int sa=scheduler->SchedulingAlgorithm;
-  if(sa==2){
-    if(!durationCPU) return;
-    currentThread->priorityValue+=durationCPU;
-    currentThread->priorityValue/=2.0;
-  }
-  else if(sa==7 || sa==8 || sa==9 || sa==10){
-    if(!durationCPU) return;
-    currentThread->priorityValue+=durationCPU;
-    THERE SHOUDL BE SOMETHING HERE----------------
-    /*List* new_listOfReadyThreads=new List;
+ProcessScheduler::RearrangeThreadsOfReadyQueue(){
 
-    int k=0;
-    while(k<thread_index){
-      NachOSThread* temp=listOfReadyThreads
-      new_listOfReadyThreads->SortedInsert((void*))
+  int k=0;
+  while (k<thread_index) {
+    if(exitThreadArray[k]){
       k++;
+      continue;
     }
-  */
-  }else{
-    currentThread->priorityValue = stats->totalTicks;
+    threadArray[i]->CPUUsage/=2;
   }
+
+  NachOSThread* t;
+  for(List*l=new List;!listOfReadyThreads->IsEmpty();l->SortedInsert(t,t->priorityValue+t->CPUUsage/2))
+    l=(NachOSThread* )listOfReadyThreads->Remove();
+  listOfReadyThreads=l;
+
+REMOVE THIS AFTER debugging
+         printf("Priorities:\n");
+        for(unsigned int i = 1; i < thread_index; i++) {
+            if (!exitThreadArray[i]) {
+                printf("%d ", threadArray[i]->priority + threadArray[i]->cpuCount/2);
+            }
+        }
+        printf("\n");
+
+
 }
 
 //----------------------------------------------------------------------

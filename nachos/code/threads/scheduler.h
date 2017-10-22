@@ -21,8 +21,7 @@ class ProcessScheduler {
   public:
 
     int SchedulingAlgorithm;
-    void changePriorityCarefully(int durationCPU);
-
+    void RearrangeThreadsOfReadyQueue();
     ProcessScheduler();			// Initialize list of ready threads
     ~ProcessScheduler();			// De-allocate ready list
 

@@ -80,7 +80,7 @@ TimerInterruptHandler(int dummy)
 #ifndef USER_PROGRAM
         interrupt->YieldOnReturn();
 #else   if(scheduler->SchedulingAlgorithm!=1 && scheduler->SchedulingAlgorithm!=2 && scheduler->SchedulingAlgorithm!=0){
-            if(stats->totalTicks - currentThread->threadStatistics->startRunningTime <= 100)
+            if(stats->totalTicks - currentThread->threadStatistics->startRunningTime >= TimerTicks)// or TimerTicks
               interrupt->YieldOnReturn;
         }
 #endif
@@ -142,6 +142,8 @@ Initialize(int argc, char **argv)
 #ifdef USER_PROGRAM
 	if (!strcmp(*argv, "-s"))
 	    debugUserProg = TRUE;
+
+      
 #endif
 #ifdef FILESYS_NEEDED
 	if (!strcmp(*argv, "-f"))
